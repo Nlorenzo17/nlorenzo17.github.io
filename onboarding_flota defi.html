@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proceso Interactivo de Onboarding de Flota</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Visualization & Content Choices:
+    - Report Info: Proceso de onboarding para repartidores de flota (basado en el diagrama de flujo y la presentación previa).
+    - Goal: Informar y Organizar - Guiar a los nuevos gestores de flota a través de los pasos del onboarding de manera interactiva.
+    - Viz/Presentation Method: Un diagrama de flujo interactivo construido con HTML, CSS (Tailwind), y JavaScript. Los pasos se representan como 'tarjetas' o 'cajas' estilizadas. La información detallada para cada paso aparece en un panel de texto separado cuando se hace clic en un paso del flujo.
+    - Interaction: Hacer clic en los elementos del diagrama de flujo (las 'tarjetas' de los pasos) para resaltarlos y actualizar el panel de detalles. El flujo visual se guía por la disposición de los elementos y conectores simples (líneas y flechas Unicode).
+    - Justification: Este método traduce directamente el diagrama de flujo estático en un formato interactivo y explorable, mejorando la comprensión en comparación con una imagen o texto plano. Permite a los usuarios centrarse en un paso a la vez mientras ven su lugar en el proceso general.
+    - Library/Method: JavaScript puro para la manipulación del DOM y el manejo de eventos. Tailwind CSS para el diseño y la maquetación. Chart.js CDN está incluido por requisito, pero no se utiliza activamente ya que no hay gráficos de datos tradicionales.
+    - Confirmation: NO SVG graphics used. NO Mermaid JS used. -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f5f5f4; /* stone-100 */
+        }
+        .flowchart-step {
+            background-color: white;
+            border: 1px solid #d6d3d1; /* stone-300 */
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .flowchart-step:hover {
+            border-color: #5eead4; /* teal-300 */
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        .flowchart-step.active {
+            border-color: #14b8a6; /* teal-500 */
+            box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.4);
+            transform: translateY(-2px);
+        }
+        .connector {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 40px; /* Adjust as needed */
+            color: #52525b; /* stone-600 */
+        }
+        .connector-line {
+            width: 2px;
+            height: 100%;
+            background-color: #a8a29e; /* stone-400 */
+        }
+        .connector-line-h {
+            height: 2px;
+            width: 100%;
+            background-color: #a8a29e; /* stone-400 */
+        }
+        .decision-diamond {
+            width: 180px;
+            height: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+            padding: 10px;
+        }
+        .details-panel {
+            background-color: #ffffff;
+            border: 1px solid #e7e5e4; /* stone-200 */
+        }
+        /* Specific layout for flowchart */
+        .flow-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            align-items: start;
+        }
+        .step-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .parallel-paths {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            gap: 1rem;
+        }
+        .path {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            flex-grow: 1;
+        }
+         /* Arrow styling */
+        .arrow-down::after {
+            content: '↓';
+            font-size: 1.5rem;
+            color: #52525b; /* stone-600 */
+            display: block;
+            margin-top: 0.25rem;
+            margin-bottom: 0.25rem;
+        }
+        .arrow-right::after {
+            content: '→';
+            font-size: 1.5rem;
+            color: #52525b; /* stone-600 */
+        }
+         .step-card {
+            min-height: 80px; /* Ensure cards have a minimum height */
+        }
+        .llm-output {
+            white-space: pre-wrap; /* Preserves whitespace and line breaks */
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9rem;
+            background-color: #f0fdfa; /* teal-50 */
+            border-left: 4px solid #2dd4bf; /* teal-400 */
+            padding: 1rem;
+            margin-top: 1rem;
+            border-radius: 0.375rem; /* rounded-md */
+        }
+    </style>
+</head>
+<body class="text-stone-800">
+    <div class="container mx-auto p-4 md:p-8">
+        <header class="text-center mb-10">
+            <h1 class="text-4xl font-bold text-teal-700">Gestión Plantilla: Proceso de Onboarding</h1>
+            <p class="mt-2 text-lg text-stone-600">Guía interactiva para la incorporación de nuevos repartidores.</p>
+        </header>
+
+        <div class="lg:flex lg:gap-8">
+            <div class="lg:w-3/5 space-y-6 mb-8 lg:mb-0">
+                <p class="text-stone-700 bg-teal-50 border border-teal-200 p-4 rounded-lg">
+                    Bienvenido a la guía interactiva del proceso de onboarding de repartidores. Haz clic en cada paso del diagrama para ver los detalles y comprender mejor cada etapa.
+                </p>
+
+                <div class="step-group">
+                    <div id="step-verificacion-inicial" data-step="verificacionInicial" class="flowchart-step step-card rounded-lg p-4 w-full max-w-md text-center shadow-lg">
+                        <h3 class="font-semibold text-teal-600">1. Verificación Inicial de Conductores</h3>
+                        <p class="text-sm text-stone-600">Inicio del proceso</p>
+                    </div>
+                    <div class="arrow-down"></div>
+                </div>
+
+                <div class="step-group">
+                     <div id="step-decision-cuenta" data-step="decisionCuenta" class="flowchart-step decision-diamond rounded-lg w-full max-w-xs mx-auto shadow-lg">
+                        <h3 class="font-semibold text-teal-600">¿Repartidor tiene cuenta creada?</h3>
+                    </div>
+                     <div class="arrow-down"></div>
+                </div>
+
+                <div class="parallel-paths my-4">
+                    <div class="path border-r border-stone-300 pr-4">
+                        <p class="text-center font-medium text-stone-700 mb-2">Sí</p>
+                        <div id="step-asociar-cuenta" data-step="asociarCuenta" class="flowchart-step step-card rounded-lg p-3 w-full text-center shadow-md mb-2">
+                            <h3 class="font-semibold text-sm">2a. Asociar Cuenta</h3>
+                        </div>
+                        <div class="arrow-down"></div>
+                        <div id="step-aceptar-invitacion" data-step="aceptarInvitacion" class="flowchart-step step-card rounded-lg p-3 w-full text-center shadow-md">
+                            <h3 class="font-semibold text-sm">2b. Aceptar Invitación</h3>
+                        </div>
+                    </div>
+                    <div class="path pl-4">
+                        <p class="text-center font-medium text-stone-700 mb-2">No</p>
+                        <div id="step-crear-cuenta" data-step="crearCuenta" class="flowchart-step step-card rounded-lg p-3 w-full text-center shadow-md mb-2">
+                            <h3 class="font-semibold text-sm">3a. Crear Cuenta</h3>
+                        </div>
+                         <div class="arrow-down"></div>
+                        <div id="step-crear-contrasena" data-step="crearContrasena" class="flowchart-step step-card rounded-lg p-3 w-full text-center shadow-md">
+                            <h3 class="font-semibold text-sm">3b. Crear Contraseña</h3>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="step-group">
+                    <div class="connector"><div class="connector-line h-10"></div></div> 
+                    <p class="text-center text-stone-500 my-2">▼ Ambos caminos convergen ▼</p>
+                    <div id="step-subir-documentos" data-step="subirDocumentos" class="flowchart-step step-card rounded-lg p-4 w-full max-w-md text-center shadow-lg">
+                        <h3 class="font-semibold text-teal-600">4. Subir Documentos del Repartidor</h3>
+                    </div>
+                    <div class="arrow-down"></div>
+                </div>
+
+                <div class="step-group">
+                    <div id="step-validacion-documental" data-step="validacionDocumental" class="flowchart-step step-card rounded-lg p-4 w-full max-w-md text-center shadow-lg">
+                        <h3 class="font-semibold text-teal-600">5. Proceso de Validación Documental</h3>
+                    </div>
+                    <div class="arrow-down"></div>
+                </div>
+                
+                <div class="step-group">
+                    <div id="step-decision-vehiculo" data-step="decisionVehiculo" class="flowchart-step decision-diamond rounded-lg w-full max-w-xs mx-auto shadow-lg">
+                        <h3 class="font-semibold text-teal-600">¿Tipo de Vehículo?</h3>
+                    </div>
+                    <div class="arrow-down"></div>
+                </div>
+
+                <div class="parallel-paths my-4">
+                    <div class="path border-r border-stone-300 pr-4">
+                        <p class="text-center font-medium text-stone-700 mb-2">Vehículo de Motor</p>
+                        <div id="step-crear-vehiculo-motor" data-step="crearVehiculoMotor" class="flowchart-step step-card rounded-lg p-3 w-full text-center shadow-md">
+                            <h3 class="font-semibold text-sm">6a. Crear Vehículo (Motor)</h3>
+                        </div>
+                    </div>
+                    <div class="path pl-4">
+                         <p class="text-center font-medium text-stone-700 mb-2">Bicicleta</p>
+                        <div id="step-crear-vehiculo-bici" data-step="crearVehiculoBici" class="flowchart-step step-card rounded-lg p-3 w-full text-center shadow-md">
+                            <h3 class="font-semibold text-sm">6b. Crear Vehículo (Bicicleta)</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="step-group">
+                    <div class="connector"><div class="connector-line h-10"></div></div>
+                    <p class="text-center text-stone-500 my-2">▼ Ambos caminos convergen ▼</p>
+                    <div id="step-asociacion-final" data-step="asociacionFinal" class="flowchart-step step-card rounded-lg p-4 w-full max-w-md text-center shadow-lg">
+                        <h3 class="font-semibold text-teal-600">7. Asociación de Vehículo al Repartidor</h3>
+                    </div>
+                </div>
+            </div>
+
+            <div class="lg:w-2/5 sticky top-8">
+                <div id="details-panel-content" class="details-panel p-6 rounded-xl shadow-xl min-h-[300px]">
+                    <h2 class="text-2xl font-semibold text-teal-700 mb-4">Detalles del Paso</h2>
+                    <p class="text-stone-600">Selecciona un paso del diagrama para ver su información aquí.</p>
+                    
+                    <div id="llm-features" class="mt-6 border-t border-stone-200 pt-4 hidden">
+                        <h3 class="text-xl font-semibold text-teal-700 mb-3">Herramientas de IA ✨</h3>
+                        <div class="flex flex-col space-y-3">
+                            <button id="btn-generate-tips" class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:-translate-y-1">
+                                Generar Consejos Adicionales ✨
+                            </button>
+                            <button id="btn-generate-email" class="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2 px-4 rounded-lg shadow-md transition duration-300 ease-in-out transform hover:-translate-y-1">
+                                Generar Borrador de Email ✨
+                            </button>
+                        </div>
+                        <div id="llm-output-area" class="mt-4">
+                            <div id="llm-loading" class="hidden text-center text-teal-600 font-semibold">Cargando...</div>
+                            <div id="llm-result" class="llm-output hidden"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const processData = {
+            verificacionInicial: {
+                title: "Verificación Inicial de Conductores",
+                content: `
+                    <p class="text-stone-700 mb-2">Este es el primer paso para incorporar a un nuevo repartidor.</p>
+                    <ul class="list-disc list-inside text-stone-600 space-y-1">
+                        <li><strong>Acción Principal:</strong> Se debe enviar un correo electrónico para la verificación inicial.</li>
+                        <li><strong>Destinatario:</strong> <code class="bg-stone-200 px-1 rounded">spain-fleet-support@uber.com</code></li>
+                        <li><strong>Propósito:</strong> Comprobar que se puede usar esa cuenta para trabajar en la plataforma y pedir cambio a moto/bici.</li>
+                    </ul>
+                `
+            },
+            decisionCuenta: {
+                title: "¿El repartidor tiene una cuenta creada?",
+                content: `
+                    <p class="text-stone-700 mb-2">En este punto, el proceso se bifurca dependiendo de si el repartidor ya posee una cuenta en la plataforma o no.</p>
+                    <p class="text-stone-600"><strong>Si SÍ tiene cuenta:</strong> Se procederá a asociar la cuenta existente.</p>
+                    <p class="text-stone-600"><strong>Si NO tiene cuenta:</strong> Se deberá crear una nueva cuenta para el repartidor.</p>
+                `
+            },
+            asociarCuenta: {
+                title: "Asociar Cuenta Existente",
+                content: `
+                    <p class="text-stone-700 mb-2">Para repartidores que ya tienen una cuenta en la plataforma.</p>
+                    <ul class="list-disc list-inside text-stone-600 space-y-1">
+                        <li><strong>Acción:</strong> Asociar la cuenta del repartidor.</li>
+                        <li><strong>Plataforma:</strong> Se realiza a través del <code class="bg-stone-200 px-1 rounded">Supplier Portal</code>.</li>
+                        <li><strong>Ruta:</strong> Pestaña "drivers" > "Add driver".</li>
+                        <li><strong>Siguiente paso para el repartidor:</strong> Aceptar la invitación recibida.</li>
+                    </ul>
+                `
+            },
+            aceptarInvitacion: {
+                title: "Aceptar la Invitación",
+                content: `
+                    <p class="text-stone-700 mb-2">Este paso es crucial para vincular la cuenta existente del repartidor con la flota.</p>
+                    <ul class="list-disc list-inside text-stone-600 space-y-1">
+                        <li><strong>Acción del repartidor:</strong> Debe aceptar la invitación que se le ha enviado.</li>
+                        <li><strong>Importancia:</strong> Confirma la asociación y permite continuar con el proceso de onboarding.</li>
+                    </ul>
+                `
+            },
+            crearCuenta: {
+                title: "Crear Nueva Cuenta",
+                content: `
+                    <p class="text-stone-700 mb-2">Para repartidores que no tienen una cuenta previa en la plataforma.</p>
+                     <ul class="list-disc list-inside text-stone-600 space-y-1">
+                        <li><strong>Acción:</strong> Crear una nueva cuenta para el repartidor.</li>
+                        <li><strong>Plataforma:</strong> Se gestiona también en el <code class="bg-stone-200 px-1 rounded">Supplier Portal</code>.</li>
+                        <li><strong>Ruta:</strong> Pestaña "drivers" > "Add driver".</li>
+                        <li><strong>Siguiente paso para el repartidor:</strong> Crear una contraseña para su nueva cuenta.</li>
+                    </ul>
+                `
+            },
+            crearContrasena: {
+                title: "Crear Contraseña",
+                content: `
+                    <p class="text-stone-700 mb-2">El repartidor debe establecer una contraseña para su nueva cuenta.</p>
+                    <ul class="list-disc list-inside text-stone-600 space-y-1">
+                        <li><strong>Acción del repartidor:</strong> Definir y confirmar una contraseña segura.</li>
+                        <li><strong>Importancia:</strong> Permite el acceso seguro del repartidor a la plataforma.</li>
+                    </ul>
+                `
+            },
+            subirDocumentos: {
+                title: "Subir Documentos del Repartidor",
+                content: `
+                    <p class="text-stone-700 mb-2">Una vez gestionada la cuenta, todos los repartidores deben subir la siguiente documentación:</p>
+                    <ul class="list-disc list-inside text-stone-600 space-y-2">
+                        <li><strong>Documento de identidad:</strong> DNI/NIE vigente.</li>
+                        <li><strong>Foto de perfil:</strong> Foto clara y reciente del repartidor.</li>
+                        <li><strong>Solicitud TA/2:</strong> Si aplica según la normativa laboral.</li>
+                        <li><strong>Carnet de conducir:</strong> <span class="font-semibold">Solo obligatorio</span> para repartidores que vayan a utilizar <span class="font-semibold">moto</span>.</li>
+                    </ul>
+                `
+            },
+            validacionDocumental: {
+                title: "Proceso de Validación Documental",
+                content: `
+                    <p class="text-stone-700 mb-2">Tras la subida, los documentos pasan por un proceso de revisión y validación:</p>
+                    <ul class="list-disc list-inside text-stone-600 space-y-1">
+                        <li><strong>Revisión de documentos por soporte:</strong> El equipo de soporte verifica la autenticidad, legibilidad y completitud de cada documento.</li>
+                        <li><strong>Verificación de identidad (Ubble):</strong> El repartidor recibirá un link de un proveedor externo de Uber (Ubble) para realizar la verificación de identidad. En dicho link se le pedirá grabar un vídeo enseñando el documento de identidad. Ubble suele tardar unas 24 horas en procesar el documento subido.</li>
+                    </ul>
+                    <p class="mt-3 text-sm text-stone-500">Una vez validado el documento, la cuenta del repartidor quedará activada.</p>
+                `
+            },
+            decisionVehiculo: {
+                title: "¿Qué tipo de vehículo utilizará el repartidor?",
+                content: `
+                    <p class="text-stone-700 mb-2">El proceso para crear y asociar el vehículo varía según si es un vehículo de motor o una bicicleta.</p>
+                    <ul class="list-disc list-inside text-stone-600 space-y-1">
+                        <li><strong>Vehículo de Motor:</strong> Se deberá hacer a través de <code class="bg-stone-200 px-1 rounded">Supplier Portal</code>. Para ello: <code class="bg-stone-200 px-1 rounded">Supplier Portal > pestaña “vehicles” > Add vehicle</code>.</li>
+                        <li><strong>Bicicleta:</strong> Se gestiona a través del <code class="bg-stone-200 px-1 rounded">Chat de Soporte</code>.</li>
+                    </ul>
+                `
+            },
+            crearVehiculoMotor: {
+                title: "Crear Vehículo Asociado (Vehículo de Motor)",
+                content: `
+                    <p class="text-stone-700 mb-2">Para repartidores que utilizarán un vehículo de motor (coche, moto).</p>
+                    <ul class="list-disc list-inside text-stone-600 space-y-1">
+                        <li><strong>Plataforma:</strong> Se gestiona a través del <code class="bg-stone-200 px-1 rounded">Supplier Portal</code>.</li>
+                        <li><strong>Ruta:</strong> Pestaña "drivers" > "Add vehículo".</li>
+                        <li><strong>Documentos Requeridos para el vehículo:</strong>
+                            <ul class="list-circle list-inside ml-4">
+                                <li>Póliza de seguro vigente.</li>
+                                <li>Permiso de circulación del vehículo.</li>
+                            </ul>
+                        </li>
+                    </ul>
+                `
+            },
+            crearVehiculoBici: {
+                title: "Crear Vehículo Asociado (Bicicleta)",
+                content: `
+                    <p class="text-stone-700 mb-2">Para repartidores que utilizarán bicicleta.</p>
+                    <ul class="list-disc list-inside text-stone-600 space-y-1">
+                        <li><strong>Método de creación:</strong> Se realiza a través del <code class="bg-stone-200 px-1 rounded">Chat de Soporte</code>.</li>
+                        <li><strong>Proceso Simplificado:</strong> Generalmente no requiere la subida de documentación específica del vehículo como en el caso de los vehículos a motor.</li>
+                    </ul>
+                `
+            },
+            asociacionFinal: {
+                title: "Asociación Final de Vehículo al Repartidor",
+                content: `
+                    <p class="text-stone-700 mb-2">Este es el último paso para completar el onboarding del repartidor y su vehículo.</p>
+                    <ul class="list-disc list-inside text-stone-600 space-y-1">
+                        <li><strong>Acción:</strong> Vincular formalmente el vehículo (ya creado en el paso anterior) con el perfil del repartidor.</li>
+                        <li><strong>Plataforma:</strong> Se efectúa en el <code class="bg-stone-200 px-1 rounded">Supplier Portal</code>.</li>
+                        <li><strong>Ruta:</strong> Pestaña "drivers" > Seleccionar el "Driver" > Ir a la sección 'Vehicle Assignments'.</li>
+                    </ul>
+                    <p class="mt-3 font-semibold text-teal-600">Al finalizar este paso, el repartidor y su vehículo quedan completamente incorporados y listos para operar en la plataforma.</p>
+                `
+            }
+        };
+
+        const flowchartSteps = document.querySelectorAll('.flowchart-step');
+        const detailsPanelContent = document.getElementById('details-panel-content');
+        const llmFeaturesDiv = document.getElementById('llm-features');
+        const btnGenerateTips = document.getElementById('btn-generate-tips');
+        const btnGenerateEmail = document.getElementById('btn-generate-email');
+        const llmLoading = document.getElementById('llm-loading');
+        const llmResult = document.getElementById('llm-result');
+
+        let currentActiveStep = null;
+        let currentStepData = null;
+
+        async function callGeminiAPI(prompt) {
+            llmLoading.classList.remove('hidden');
+            llmResult.classList.add('hidden');
+            llmResult.innerHTML = '';
+
+            let chatHistory = [];
+            chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+            const payload = { contents: chatHistory };
+            const apiKey = "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    const text = result.candidates[0].content.parts[0].text;
+                    llmResult.innerHTML = text;
+                    llmResult.classList.remove('hidden');
+                } else {
+                    llmResult.innerHTML = 'Error: No se pudo generar el contenido. Inténtalo de nuevo.';
+                    llmResult.classList.remove('hidden');
+                }
+            } catch (error) {
+                llmResult.innerHTML = 'Error al conectar con la IA. Por favor, revisa tu conexión.';
+                llmResult.classList.remove('hidden');
+            } finally {
+                llmLoading.classList.add('hidden');
+            }
+        }
+
+        flowchartSteps.forEach(stepElement => {
+            stepElement.addEventListener('click', () => {
+                const stepId = stepElement.dataset.step;
+                if (processData[stepId]) {
+                    currentStepData = processData[stepId];
+                    detailsPanelContent.innerHTML = `
+                        <h2 class="text-2xl font-semibold text-teal-700 mb-4">${currentStepData.title}</h2>
+                        <div class="prose prose-stone max-w-none">${currentStepData.content}</div>
+                    `;
+
+                    if (currentActiveStep) {
+                        currentActiveStep.classList.remove('active');
+                    }
+                    stepElement.classList.add('active');
+                    currentActiveStep = stepElement;
+                    
+                    llmFeaturesDiv.classList.remove('hidden'); // Show LLM features
+                    llmResult.classList.add('hidden'); // Hide previous LLM result
+                    llmResult.innerHTML = ''; // Clear previous LLM result
+
+                    if (window.innerWidth < 1024) {
+                        detailsPanelContent.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+
+                }
+            });
+        });
+
+        btnGenerateTips.addEventListener('click', () => {
+            if (currentStepData) {
+                const prompt = `Basado en el siguiente paso del proceso de onboarding de repartidores: "${currentStepData.title}". Detalles: ${currentStepData.content.replace(/<[^>]*>/g, '')}. Genera 3 consejos adicionales o mejores prácticas para un gestor de flota al manejar este paso. Los consejos deben ser concisos y prácticos.`;
+                callGeminiAPI(prompt);
+            }
+        });
+
+        btnGenerateEmail.addEventListener('click', () => {
+            if (currentStepData) {
+                const prompt = `Genera un borrador de correo electrónico corto y profesional dirigido a un 'Repartidor' para el siguiente paso del proceso de onboarding: "${currentStepData.title}". Detalles: ${currentStepData.content.replace(/<[^>]*>/g, '')}. El correo debe ser amigable, claro y especificar la acción o el estado relacionado con este paso. Si es un paso de subida de documentos, que pida al repartidor que suba los documentos. Si es un paso de finalización, que confirme la finalización y los siguientes pasos.`;
+                callGeminiAPI(prompt);
+            }
+        });
+
+        const initialStepKey = Object.keys(processData)[0];
+        if(initialStepKey && processData[initialStepKey]) {
+            currentStepData = processData[initialStepKey];
+            detailsPanelContent.innerHTML = `
+                <h2 class="text-2xl font-semibold text-teal-700 mb-4">${currentStepData.title}</h2>
+                <div class="prose prose-stone max-w-none">${currentStepData.content}</div>
+            `;
+            const initialElement = document.querySelector(`[data-step="${initialStepKey}"]`);
+            if(initialElement) {
+                initialElement.classList.add('active');
+                currentActiveStep = initialElement;
+            }
+            llmFeaturesDiv.classList.remove('hidden'); // Show LLM features on load
+        } else {
+            detailsPanelContent.innerHTML = `
+                <h2 class="text-2xl font-semibold text-teal-700 mb-4">Bienvenido</h2>
+                <p class="text-stone-600">Selecciona un paso del diagrama de la izquierda para ver su información detallada aquí. Esta guía te ayudará a comprender cada etapa del proceso de onboarding de repartidores.</p>
+            `;
+        }
+
+    </script>
+</body>
+</html>
